@@ -50,7 +50,57 @@ The dataset is obtained from the UN Comtrade database, an open-access repository
 ## Dataset
 
 ```{r}
- 
+library(readxl) # to read excel files
+library(janitor) # to clean data
+library(dplyr) # wrangling
+library(tidyr) # wrangling
+library(readr) # to export csv
+library(tidyverse) # to wrangle the data
+library(ggplot2)
+```
+
+Setting up the data; Changing the units from Kg to Mg
+```{r}
+getwd()
+poultrydata <- read_csv("../data/03_assignment_data.csv")
+
+poultrydata
+view(poultrydata)
+
+poultrydata_Mg <- mutate(poultrydata,
+                         qty_in_Mg = qty*0.001,
+                         qty_in_Mg = round(qty_in_Mg, 0)
+                        )
+
+poultrydata_Mg
+
+```
+
+reducing the original file to only display columns of interest
+```{r}
+poultrydata_refined <- dplyr::select(poultrydata_Mg,
+                                     ref_year, flow_desc, partner_desc, qty_in_Mg, primary_value)
+
+view(poultrydata_refined)
+
+```
+
+Making one object that's all the imports
+```{r}
+imports_poultrydata <- filter (poultrydata_refined,
+                               flow_desc == "Import"
+                               )
+imports_poultrydata
+view(imports_poultrydata)
+```
+
+Making one object that's all the exports
+```{r}
+exports_poultrydata <- filter (poultrydata_refined,
+                               flow_desc == "Export"
+                               )
+exports_poultrydata
+view(exports_poultrydata)
 ```
 
 # Assignemnt Questions:
@@ -58,30 +108,189 @@ The dataset is obtained from the UN Comtrade database, an open-access repository
 ## Imports:
 
 #### 1. How many distinct countries were there (based on given data), from where US was importing the poultry products from 2018-2024?
+```{r}
+distinct_import_countries <- summarize (imports_poultrydata, 
+                                        distinct_countries = n_distinct(partner_desc)
+)
+
+print(distinct_import_countries)                                        
+                          
+```
+**The U.S. imported poultry from 7 distinct nations over the years 2018 to 2024**
+
 
 #### 2. What are the minimum, maximum trade values for imports? Mention the country, year and its respective value.
+```{r}
+min_max_imports <- filter (imports_poultrydata,
+                           primary_value == min (primary_value, na.rm=TRUE)| 
+                           primary_value == max (primary_value, na.rm=TRUE)
+                           )
+
+#personal note for future use: the | is "OR" rather than a comma, which means "and"
+
+print(min_max_imports)
+
+```
+
+**The Maximum import was from Chile in 2022 with a value of 428,214,676. The Minimum Import was from Poland in 2022 with only 4,308 import value. **
 
 #### 3. Identify the top 5 countries from which the USA imported the most (qty) in the years 2018 and 2024. List the countries and their corresponding import values.
+```{r}
+#note to self: the pipe %>% lets you plug in the previous object into the next argument. So, if I start with the data I want and follow with %>%, it'll use that object to to each of the commands that follows.
+top5_import_countries2018 <- imports_poultrydata %>%
+  filter(ref_year == 2018) %>% #in 2018 only
+  slice_max(qty_in_Mg, n=5) #only the top 5
+
+print(top5_import_countries2018)
+```
+
+**There are only 4 countries that the U.S. imported from in 2018: Chile (40,202 Mg), Canada (31,582Mg), Israel (1,693 Mg), and Germany (66 Mg).**
+
+```{r}
+top5_import_countries2024 <- imports_poultrydata %>%
+  filter(ref_year == 2024) %>%
+  slice_max(qty_in_Mg, n=5)
+
+print(top5_import_countries2024)
+
+```
+
+**There are only 3 countries that the U.S. imported from in 2018: Chile (55,309 Mg), Canada (31,793 Mg), and Mexico (187 Mg).**
+
 
 #### 4. Calculate the total import value for the USA from each country. Which country had the highest total export value **to** US, and what was that value?
+```{r}
+sum_import_countries <- imports_poultrydata %>%
+  group_by(partner_desc) %>%
+  summarize(sum_primary_values = sum(primary_value)) %>%
+  arrange(desc(sum_primary_values))
+
+print(sum_import_countries)
+
+```
+
+**The country with the highest exports to the U.S. across these years was Chile, with a total value of 1,532,686,723. **
 
 #### 5. Calculate the total import value for the USA in each year from 2018 to 2025. Which year had the highest total import value, and what was that value?
+```{r}
+
+sum_import_annual <- imports_poultrydata %>%
+  group_by(ref_year) %>%
+  summarize(sum_primary_values_import = sum(primary_value)) %>%
+  arrange(desc(sum_primary_values_import))
+
+print(sum_import_annual)
+
+```
+**The year with the highest imports to the U.S. was 2022, with a total value of 566,412,591. **
 
 #### 6. Plot a line graph showing the total annual import value for the USA from 2018 to 2024. Describe any noticeable trends or patterns (e.g., increases, decreases, or fluctuations) in the graph. Create a publication ready plot.
+```{r}
+#x = ref_year
+#y = sum_primary_values_import
+
+ggplot(data = sum_import_annual,
+       mapping = aes(x=ref_year,
+                     y=sum_primary_values_import)) +
+  geom_line(linewidth = 1.6, color="pink")+
+  theme_classic()+
+  labs(
+    x = "Reference Year",
+    y = "Sum of Values",
+    title = "Total Annual Poultry Import Value"
+  )
+
+```
+
+**The graph produced shows an initial increase in Imports of Poultry product to the U.S. from 2018 up to a peak in 2022, after which there is a sharp decline in 2023. The total import value in 2024 shows an increase, however not reaching 2022 values. **
 
 ## Exports:
 
 #### 7. How many distinct countries were there (based on given data), to where US was exporting the poultry products?
+```{r}
+distinct_export_countries <- summarize (exports_poultrydata, 
+                                        distinct_countries = n_distinct(partner_desc)
+)
+
+print(distinct_export_countries) 
+```
+**The U.S. exported poultry to 188 distinct nations over the years 2018 to 2024**
+
 
 #### 8. What are the minimum, maximum trade values for exports? Mention the country, year and its respective value.
+```{r}
+min_max_exports <- filter (exports_poultrydata,
+                           primary_value == min (primary_value, na.rm=TRUE)| 
+                           primary_value == max (primary_value, na.rm=TRUE)
+                           )
+
+print(min_max_exports)
+```
+
+**The Maximum Export was to Mexico in 2024 with a value of 1,172,550,687. The Minimum Export was to Czechia in 2018 with only 2,900 export value. **
 
 #### 9. Identify the top 5 countries to which the USA exported the most (qty) in the years 2018 and 2024. List the countries and their corresponding export values.
+```{r}
+top5_export_countries2018 <- exports_poultrydata %>%
+  filter(ref_year == 2018) %>%
+  slice_max(qty_in_Mg, n=5)
+
+print(top5_export_countries2018)
+```
+**The top 5 Export countries in 2018 were Mexico (792,813 Mg), China, Hong Kong (291,713 Mg), Angola (209,389 Mg), Other Asia, nes (202,493 Mg), and Cuba (195,235 Mg). **
+
+```{r}
+top5_export_countries2024 <- exports_poultrydata %>%
+  filter(ref_year == 2024) %>%
+  slice_max(qty_in_Mg, n=5)
+
+print(top5_export_countries2024)
+```
+**The top 5 Export countries in 2024 were Mexico (852,904 Mg), Cuba (239,643 Mg), Other Asia, nes (210,049 Mg), Philippines (163,084 Mg), and Canada (148,189 Mg). **
+
 
 #### 10. Calculate the total export value for the USA from each country. Which country had the highest total import value **from** US, and what was that value?
+```{r}
+sum_export_countries <- exports_poultrydata %>%
+  group_by(partner_desc) %>%
+  summarize(sum_primary_values = sum(primary_value))%>%
+  arrange(desc(sum_primary_values)) #if you don't put this line, it will arrage alphabetically rather than from maximum to minimum.
+
+print(sum_export_countries)
+```
+
+**The country with the highest imports from the U.S. across these years was Mexico, with a total value of 6,823,047,519. **
 
 #### 11. Calculate the total export value for the USA in each year from 2018 to 2025. Which year had the highest total export value, and what was that value?
+```{r}
+sum_export_annual <- exports_poultrydata %>%
+  group_by(ref_year) %>%
+  summarize(sum_primary_values_export = sum(primary_value)) %>%
+  arrange(desc(sum_primary_values_export))
+
+print(sum_export_annual)
+```
+
+**The year with the highest exports from the U.S. was 2022, with a total value of 5,401,343,250. **
 
 #### 12. Plot a line graph showing the total annual export value for the USA from 2018 to 2024. Describe any noticeable trends or patterns (e.g., increases, decreases, or fluctuations) in the graph. Create a publication ready plot.
+```{r}
+#x = ref_year
+#y = sum_primary_values_export
+
+ggplot(data = sum_export_annual,
+       mapping = aes(x=ref_year,
+                     y=sum_primary_values_export)) +
+  geom_line(linewidth = 1.6, color="darkorchid")+
+  theme_classic()+
+  labs(
+    x = "Reference Year",
+    y = "Sum of Values",
+    title = "Total Annual Poultry Export Value"
+  )
+```
+
+**The total Annual Export value for poultry from the U.S. shows an increase in exports from 2018 to 2022, 2022 being the peak export year. However, there is a gradual decrease for the following two years. When compared to the Import graph above, this suggests that Poultry trade generally reduced following 2022. ** 
 
 ## Imports - Exports Comparision:
 
@@ -90,10 +299,27 @@ The dataset is obtained from the UN Comtrade database, an open-access repository
 -   Based on total value US imports and exports.
 -   Based on number of countries US imports and exports
 -   Based on each year's import export value.
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
 
 #### 14. Are the main import partners also major export destinations? Explore it based on the total import export value by countries.
+```{r}
+
+```
 
 #### 15. Can you calculate if US is in trade surplus or trade deficit for each year from 2018-2024?
+```{r}
+
+```
 
 $$\text{Trade surplus or deficit} = \text{Imports} - \text{Exports}$$
 
