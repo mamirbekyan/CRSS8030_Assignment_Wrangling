@@ -1,11 +1,15 @@
 ---
-title: "Assignment 3"
+title: "Assignment 3 - Amirbekyan, Mari"
 format:
   html:
     code-fold: false
     embed-resources: true
     toc: true
 ---
+<style>
+  p { color: green; }     /* Makes all paragraphs green */
+  h1 { color: blue; }   /* Makes all H1 headings blue */
+</style>
 
 # Dataset Description: U.S. Bilateral Trade in Poultry Products  
 
@@ -37,13 +41,13 @@ The dataset is obtained from the UN Comtrade database, an open-access repository
 
 5.  As part of the initial wrangling, you are expected to:  
 
--   Transform the `qty` column from kg to Mg  
--   Select only columns that are useful to answer the questions.  
+Transform the `qty` column from kg to Mg  
+Select only columns that are useful to answer the questions.  
 
 6. Check out the following cheatsheets to give you some ideas on wrangling and plotting:  
 
-  - **ggplot2**: https://posit.co/wp-content/uploads/2022/10/data-visualization-1.pdf  
-  - **dplyr**: https://rstudio.github.io/cheatsheets/data-transformation.pdf   
+**ggplot2**: https://posit.co/wp-content/uploads/2022/10/data-visualization-1.pdf  
+**dplyr**: https://rstudio.github.io/cheatsheets/data-transformation.pdf   
   
 
 
@@ -64,7 +68,6 @@ Setting up the data; Changing the units from Kg to Mg
 getwd()
 poultrydata <- read_csv("../data/03_assignment_data.csv")
 
-poultrydata
 view(poultrydata)
 
 poultrydata_Mg <- mutate(poultrydata,
@@ -72,7 +75,6 @@ poultrydata_Mg <- mutate(poultrydata,
                          qty_in_Mg = round(qty_in_Mg, 0)
                         )
 
-poultrydata_Mg
 
 ```
 
@@ -81,7 +83,7 @@ reducing the original file to only display columns of interest
 poultrydata_refined <- dplyr::select(poultrydata_Mg,
                                      ref_year, flow_desc, partner_desc, qty_in_Mg, primary_value)
 
-view(poultrydata_refined)
+print(poultrydata_refined)
 
 ```
 
@@ -90,8 +92,7 @@ Making one object that's all the imports
 imports_poultrydata <- filter (poultrydata_refined,
                                flow_desc == "Import"
                                )
-imports_poultrydata
-view(imports_poultrydata)
+print(imports_poultrydata)
 ```
 
 Making one object that's all the exports
@@ -99,8 +100,7 @@ Making one object that's all the exports
 exports_poultrydata <- filter (poultrydata_refined,
                                flow_desc == "Export"
                                )
-exports_poultrydata
-view(exports_poultrydata)
+print(exports_poultrydata)
 ```
 
 # Assignemnt Questions:
@@ -110,10 +110,10 @@ view(exports_poultrydata)
 #### 1. How many distinct countries were there (based on given data), from where US was importing the poultry products from 2018-2024?
 ```{r}
 distinct_import_countries <- summarize (imports_poultrydata, 
-                                        distinct_countries = n_distinct(partner_desc)
+                                        Import_Countries = n_distinct(partner_desc)
 )
 
-print(distinct_import_countries)                                        
+print(distinct_import_countries)                                    
                           
 ```
 **The U.S. imported poultry from 7 distinct nations over the years 2018 to 2024**
@@ -121,8 +121,8 @@ print(distinct_import_countries)
 
 #### 2. What are the minimum, maximum trade values for imports? Mention the country, year and its respective value.
 ```{r}
-min_max_imports <- filter (imports_poultrydata,
-                           primary_value == min (primary_value, na.rm=TRUE)| 
+min_max_imports <-  imports_poultrydata %>% 
+                           filter (primary_value == min (primary_value, na.rm=TRUE)| 
                            primary_value == max (primary_value, na.rm=TRUE)
                            )
 
@@ -209,7 +209,7 @@ ggplot(data = sum_import_annual,
 #### 7. How many distinct countries were there (based on given data), to where US was exporting the poultry products?
 ```{r}
 distinct_export_countries <- summarize (exports_poultrydata, 
-                                        distinct_countries = n_distinct(partner_desc)
+                                        Export_Countries = n_distinct(partner_desc)
 )
 
 print(distinct_export_countries) 
@@ -297,29 +297,119 @@ ggplot(data = sum_export_annual,
 #### 13. Does the U.S. behave more as a net importer or net exporter for this commodity? Explore it:
 
 -   Based on total value US imports and exports.
+```{r}
+ 
+sum_import_values <- sum(imports_poultrydata$primary_value)
+print(sum_import_values)
+
+sum_export_values <- sum(exports_poultrydata$primary_value)
+print(sum_export_values)
+
+Poultry_values <- data.frame(
+  Total_Imports = sum_import_values,
+  Total_Exports = sum_export_values
+) %>%
+  mutate ("Exports-Imports" = Total_Exports-Total_Imports)
+
+print(Poultry_values)
+
+```
+**Considering the Total import value and export value across all years, the US is predominantly an exporter. The export value exceeds the import value by 28,614,597,294.**
+
 -   Based on number of countries US imports and exports
+```{r}
+distinct_import_countries #these are both tables because I used summarize earlier to make them.
+distinct_export_countries #so, I can pull their data while renaming the columns in data.frame using "pull"
+
+trade_partners <- data.frame(
+  "Import Nations" = pull(distinct_import_countries),
+  "Export Nations" = pull(distinct_export_countries)
+) %>%
+  mutate ("Exports-Imports" = pull(distinct_export_countries)-pull(distinct_import_countries))
+
+print(trade_partners)
+
+```
+**Based on the number of distinct countries the US traded with across all years, the US is predominantly an exporter for poultry products. There were only 7 importing nations, while the US exported to 188 nations.**
+
+
 -   Based on each year's import export value.
 ```{r}
+annual_sum_imports <- imports_poultrydata %>%
+  group_by(ref_year) %>%
+  summarize(sum_primary_values_import = sum(primary_value)) #This object is not arranged descending
+
+print(annual_sum_imports)
+
+annual_sum_exports <- exports_poultrydata %>%
+  group_by(ref_year) %>%
+  summarize(sum_primary_values_export = sum(primary_value)) #This object is not arranged descending
+
+print(annual_sum_exports)
+
+
+annual_import_export_value <- annual_sum_imports %>%
+  full_join(annual_sum_exports, by = "ref_year") %>%
+  mutate("Exports-Imports" = sum_primary_values_export - sum_primary_values_import) %>%
+  arrange(ref_year)
+
+annual_import_export_value
+
 
 ```
+**Based on total import export value from 2018-2024, the US was predominantly an exporter, exporting around 3 to nearly 5 billion more than it was importing each year. **
 
-```{r}
-
-```
-
-```{r}
-
-```
 
 #### 14. Are the main import partners also major export destinations? Explore it based on the total import export value by countries.
+
+Top 7 total Imports by Country
 ```{r}
+Tot_Imports_by_Country <- imports_poultrydata %>%
+  group_by(partner_desc) %>%
+  summarize(sum_primary_values_import = sum(primary_value)) %>%
+  arrange(desc(sum_primary_values_import))
+
+print(Tot_Imports_by_Country)
 
 ```
+
+Top 7 Total Exports by Country
+```{r}
+Tot_Exports_by_Country <- exports_poultrydata %>%
+  group_by(partner_desc) %>%
+  summarize(sum_primary_values_export = sum(primary_value)) %>%
+  slice_max(sum_primary_values_export, n=7) %>%
+  arrange(desc(sum_primary_values_export))
+
+print(Tot_Exports_by_Country)
+```
+Comparing
+```{r}
+common_countries <-intersect(
+  pull(Tot_Imports_by_Country, partner_desc),
+  pull(Tot_Exports_by_Country, partner_desc)
+)
+
+print(common_countries)
+```
+
+**Since there are only 7 nations the US imported from across these years, I sorted the totals by country for these 7, and then created a top 7 Total Exports analysis by country. Then I compared if there is overlap for these countries across the lists using the intersect function, pulling the data in the two columns for trade partners in each of the created tables. The only nations that existed on both lists are Canada, Mexico, and China.**
 
 #### 15. Can you calculate if US is in trade surplus or trade deficit for each year from 2018-2024?
 ```{r}
+annual_deficit <- annual_sum_imports %>%
+  full_join(annual_sum_exports, by = "ref_year") %>%
+  mutate("Imports-Exports" = sum_primary_values_import - sum_primary_values_export) %>%
+  mutate(
+    "Trade" = case_when(
+             "Imports-Exports">0 ~ "Surplus",
+             "Imports-Exports"<0 ~ "Deficit" )) %>%
+  arrange(ref_year)
 
+print(annual_deficit)
 ```
+**For all years, the US is in a trade surplus, where it is exporting more than it is importing from other nations.**
+
 
 $$\text{Trade surplus or deficit} = \text{Imports} - \text{Exports}$$
 
